@@ -1,0 +1,32 @@
+# Keel version-discipline guard — vendored per package as .github/workflows/version-guard.yml.
+# Canonical source: keel-kit/scripts/version-guard.yml + keel-kit/scripts/keel_version_guard.py.
+# keel-base ships this so every new fork inherits the guard automatically; each existing
+# package carries its own copy. It runs on every push to main and on every release tag,
+# and fails the run if pyproject version and the tag disagree, or if src/ changed without
+# a version bump. See keel-kit/methodology/versioning-and-release.md.
+name: version-guard
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: version-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: version-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Check version discipline
+        run: python3 .github/keel_version_guard.py

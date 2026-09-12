@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "keel-visuals"
+version = "0.0.0"
+description = "Keel Visuals — a shared, business-blind registry of free visual assets (icons, 3D objects, world maps, device frames) that an image brief names by key, served as Django static assets and readable without Django by a headless renderer."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Milad Safaei" }]
+license = { text = "UNLICENSED" }
+dependencies = []
+
+# The runtime (manifest, catalog, resolver) is stdlib only, so a renderer with no
+# Django can read it; Django is needed only to serve the files as static assets.
+# The sync tooling under scripts/ is a maintenance-time concern for this repo.
+[project.optional-dependencies]
+django = ["Django>=4.2"]
+sync = ["requests>=2.28", "Pillow>=10.0"]
+
+[project.urls]
+Homepage = "https://github.com/miladsafaei-me/keel-visuals"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/keel_visuals"]
