@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "keel-visuals"
-version = "0.1.0"
+version = "0.2.0"
 description = "Keel Visuals — a shared, business-blind registry of free visual assets (icons, 3D objects, world maps, device frames) that an image brief names by key, served as Django static assets and readable without Django by a headless renderer."
 readme = "README.md"
 requires-python = ">=3.10"
