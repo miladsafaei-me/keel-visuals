@@ -79,7 +79,7 @@ environment for the reflections, and one key light.
 | key | variants | what it is |
 |---|---|---|
 | `object/factory/gold-bar` | `1024`, `512` | a cast fine-gold bar: tapered, every edge rounded, struck "FINE GOLD 999.9" |
-| `object/factory/silver-bar` | `1024`, `512` | the same bar in silver, struck "FINE SILVER 999.0" |
+| `object/factory/silver-bar` | `1024`, `512` | the same bar in satin-polished silver, struck "FINE SILVER 999.0", exposed so its outline holds on a near-white ground |
 | `object/factory/gold-bar-stack` | `1024`, `512` | six gold bars in a pyramid of three, two and one |
 | `object/factory/oil-barrel` | `1024`, `512`, `blue-1024`, `blue-512` | a 55-gallon steel drum in black enamel (or blue), with rolling hoops, chimes and bungs |
 | `object/factory/coin-blank` | `1024`, `512`, `silver-1024`, `silver-512`, `gunmetal-1024`, `gunmetal-512` | a minted coin on its edge: polished rim, plain field ready for a mark, reeded edge |
@@ -105,16 +105,40 @@ Each entry's `extra` says how to stand the sprite on a stage without guessing:
 brand, so the mark comes in at the call and the PNG goes wherever the caller says:
 
 ```bash
-python3 scripts/build_factory_objects.py coin --face-svg mark.svg --out coin3d-1024.png --size 1024 [--metal auto|gold|silver|gunmetal]
+python3 scripts/build_factory_objects.py coin --face-svg mark.svg --out coin3d-1024.png --size 1024 [--metal auto|gold|silver|gunmetal] [--counter auto|none|#rrggbb]
+python3 scripts/build_factory_objects.py coin --face-png mark.png --out coin3d-1024.png --size 1024 [--metal auto|gold|silver|gunmetal]
 ```
 
-Every filled path of the SVG is extruded out of the coin's face in the order the SVG
-paints it, in its own colour as a clear-coated enamel (linear and radial gradients
-included), and scaled so its farthest point sits just inside the rim. With
-`--metal auto` the rim metal follows the mark's largest shape: warm and saturated
-takes gold, near black takes gunmetal, anything else silver. The command prints the
-metal it chose, the camera, the light and `ground_y_px` as JSON. Stroke-only paths are
-not extruded; the report counts them as `strokes_skipped`.
+**A vector face is struck up out of the coin.** Every filled path and every stroke of
+the SVG is a layer, in the order the SVG paints them (a path's fill, then its stroke),
+each a little higher than the last, in its own colour as a clear-coated enamel (linear
+and radial gradients included), and the whole mark is scaled so its farthest point
+sits just inside the rim. Holes follow each path's `fill-rule`, `nonzero` or `evenodd`,
+so a hole shows whatever the SVG paints beneath it. A stroke is extruded at its own
+width, with its joins and caps.
+
+Where nothing is painted beneath a hole, the SVG shows its page, and on a coin the page
+is the field. That is right for a glyph drawn on the field, such as Sui's drop, and
+wrong for a mark that is a disc of its own, such as Bitcoin's orange disc with the B
+knocked out: the knockout would turn the coin's metal into the glyph. So a holed shape
+that is round (its area at least 0.9 of the circle through its farthest point) and
+spans the mark is the mark's **plate**, and its knockouts are floored with counter
+enamel: white with `--counter auto`, or dark ink (`#141414`) when the plate is lighter
+than relative luminance 0.6; the colour given; or the field again with `--counter none`.
+
+**A raster face is set into the coin as a decal**, for a brand that publishes no
+vector. The mark is trimmed to its opaque pixels and centred. A mark that is a disc (a
+square box, at least 97 % of the circle filled, under 1 % of it outside) is cut just
+inside its own edge and laid at the bottom of a shallow well in the field, clear-coated,
+so the coin's own field and rim frame it; any other outline lies on the field with its
+transparency, its farthest pixel just inside the rim. The raster is magnified to fill
+the face, so pass the largest official master there is.
+
+With `--metal auto` the rim metal follows the mark: its largest layer, or a raster's
+mean colour. Warm and saturated takes gold, near black takes gunmetal, anything else
+silver. The command prints the metal it chose, what it found in the face (layers,
+strokes, plates and counters, or whether a raster is a disc), the camera, the light
+and `ground_y_px` as JSON.
 
 **Rebuilding it.** three.js is vendored at exactly 0.186.0 in
 `scripts/factory/vendor/three-0.186.0/` (`three.module.js`, `three.core.js`,

@@ -179121,7 +179121,7 @@
    ],
    "license": "Keel original",
    "source": "https://github.com/miladsafaei-me/keel-visuals",
-   "source_version": "factory-1+three-0.186.0",
+   "source_version": "factory-2+three-0.186.0",
    "trademark": false,
    "default_variant": "1024",
    "variants": {
@@ -179227,7 +179227,7 @@
    ],
    "license": "Keel original",
    "source": "https://github.com/miladsafaei-me/keel-visuals",
-   "source_version": "factory-1+three-0.186.0",
+   "source_version": "factory-2+three-0.186.0",
    "trademark": false,
    "default_variant": "1024",
    "variants": {
@@ -179302,7 +179302,7 @@
    ],
    "license": "Keel original",
    "source": "https://github.com/miladsafaei-me/keel-visuals",
-   "source_version": "factory-1+three-0.186.0",
+   "source_version": "factory-2+three-0.186.0",
    "trademark": false,
    "default_variant": "1024",
    "variants": {
@@ -179372,7 +179372,7 @@
    ],
    "license": "Keel original",
    "source": "https://github.com/miladsafaei-me/keel-visuals",
-   "source_version": "factory-1+three-0.186.0",
+   "source_version": "factory-2+three-0.186.0",
    "trademark": false,
    "default_variant": "1024",
    "variants": {
@@ -179459,7 +179459,7 @@
    ],
    "license": "Keel original",
    "source": "https://github.com/miladsafaei-me/keel-visuals",
-   "source_version": "factory-1+three-0.186.0",
+   "source_version": "factory-2+three-0.186.0",
    "trademark": false,
    "default_variant": "1024",
    "variants": {
@@ -179578,21 +179578,21 @@
    ],
    "license": "Keel original",
    "source": "https://github.com/miladsafaei-me/keel-visuals",
-   "source_version": "factory-1+three-0.186.0",
+   "source_version": "factory-2+three-0.186.0",
    "trademark": false,
    "default_variant": "1024",
    "variants": {
     "1024": {
      "file": "objects/factory/silver-bar/1024.png",
      "format": "png",
-     "sha256": "7b1ac4b10d6b561ad76bb2e2b6b27f0642d8ed94968a530838d02d1a79aa7b19",
+     "sha256": "77d4d8b89c50cc3890844c68f4463937e795943b2e6a2a9416e879d4eef350ce",
      "width": 1024,
      "height": 1024
     },
     "512": {
      "file": "objects/factory/silver-bar/512.png",
      "format": "png",
-     "sha256": "6a25cb1644f1b8fb1d50cacb8ae182b901c2c5a084b68d3b3b9401fc76543642",
+     "sha256": "3b28ab8c9e06baa83b38ca7c798a6b7ef53e566fab6de5899cb454e5979ce295",
      "width": 512,
      "height": 512
     }
@@ -179624,7 +179624,12 @@
       "length": 250,
       "height": 60,
       "width": 100
-     }
+     },
+     "finish": {
+      "envMapIntensity": 0.3,
+      "roughness": 0.4
+     },
+     "exposure": 0.8
     },
     "renderer": {
      "three": "0.186.0",

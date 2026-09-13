@@ -174,5 +174,73 @@ class ManifestContractTests(unittest.TestCase):
                 self.assertTrue(0.2 < share < 0.45, f"land share {share:.2f} is not Earth's")
 
 
+
+class CoinFaceTests(unittest.TestCase):
+    """The coin command's input handling, which runs before Chromium and so can be tested without it."""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            from PIL import Image, ImageDraw
+        except ImportError:
+            raise unittest.SkipTest("the raster face needs Pillow")
+        cls.Image, cls.ImageDraw = Image, ImageDraw
+        cls.script = load_factory_script()
+
+    def write(self, draw) -> Path:
+        import tempfile
+
+        image = self.Image.new("RGBA", (300, 300), (0, 0, 0, 0))
+        draw(self.ImageDraw.Draw(image))
+        handle = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        handle.close()
+        self.addCleanup(Path(handle.name).unlink)
+        image.save(handle.name)
+        return Path(handle.name)
+
+    def texture(self, data_url: str):
+        import base64
+        import io
+
+        image = self.Image.open(io.BytesIO(base64.b64decode(data_url.split(",", 1)[1])))
+        image.load()
+        return image
+
+    def test_a_disc_mark_is_cut_to_its_circle_and_flattened_onto_its_own_colour(self):
+        path = self.write(lambda draw: draw.ellipse((40, 40, 260, 260), fill=(194, 166, 51, 255)))
+        data_url, face = self.script.raster_face(path)
+        self.assertTrue(face["disc"])
+        self.assertEqual(face["dominant"], "#c2a633")
+        texture = self.texture(data_url)
+        side = round(2 * 110 * self.script.DISC_CROP)
+        self.assertLessEqual(abs(texture.width - side), 1)
+        self.assertEqual(texture.getpixel((0, 0))[3], 255, "a disc texture must not keep transparent corners")
+
+    def test_any_other_outline_keeps_its_transparency_out_to_its_farthest_pixel(self):
+        path = self.write(lambda draw: draw.polygon([(150, 30), (270, 250), (30, 250)], fill=(77, 162, 255, 255)))
+        data_url, face = self.script.raster_face(path)
+        self.assertFalse(face["disc"])
+        texture = self.texture(data_url)
+        self.assertEqual(texture.getpixel((0, 0))[3], 0)
+        self.assertGreaterEqual(texture.width, 240, "the square must reach the triangle's far corners, not just its box")
+
+    def test_a_ring_is_not_a_disc(self):
+        path = self.write(lambda draw: draw.ellipse((40, 40, 260, 260), outline=(0, 0, 0, 255), width=24))
+        self.assertFalse(self.script.raster_face(path)[1]["disc"])
+
+    def test_a_face_with_nothing_opaque_is_refused(self):
+        with self.assertRaises(SystemExit):
+            self.script.raster_face(self.write(lambda draw: None))
+
+    def test_the_counter_takes_auto_none_or_a_hex_colour_and_nothing_else(self):
+        import argparse
+
+        for value in ("auto", "none", "#ffffff", "#0A0b0C"):
+            self.assertEqual(self.script.counter_choice(value), value)
+        for value in ("white", "#fff", "ffffff", ""):
+            with self.subTest(value=value), self.assertRaises(argparse.ArgumentTypeError):
+                self.script.counter_choice(value)
+
+
 if __name__ == "__main__":
     unittest.main()

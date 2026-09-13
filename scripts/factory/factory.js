@@ -255,19 +255,32 @@ const SILVER_MARK = [
   { text: 'FINE SILVER', size: 0.16, tracking: 0.02, y: 0.36 },
   { text: '999.0', size: 0.27, tracking: 0.015, y: 0.66 },
 ];
+/*
+ * Polished silver mirrors the studio's back softbox off a bar's top face at near white,
+ * the same white as a light page, so on #f8fbfd the bar's back edge vanished. A satin
+ * finish spreads that reflection over the darker room around the softbox, and a lower
+ * exposure keeps the brightest highlights just under white: the top face reads as light
+ * grey with its outline intact, while the rounded edges still catch bright highlights,
+ * so on #00070d the bar stays silver instead of turning grey. Measured on the 1024 px
+ * render: the outer 3 px within luminance 20 of #f8fbfd fell from 37 % to 3 %, pixels
+ * above luminance 235 from 41 % to 1.3 %, and the 90th percentile stays at 219.
+ */
+const SILVER_BAR_FINISH = { envMapIntensity: 0.3, roughness: 0.4 };
+const SILVER_BAR_EXPOSURE = 0.8;
 
 /* One cast bar, base on the ground, long axis along x, with its hallmark on the top face. */
-function bar({ metalName, mark, length = 250, height = 60, width = 100 }) {
+function bar({ metalName, mark, length = 250, height = 60, width = 100, finish = {} }) {
   const group = new THREE.Group();
   const radius = 6.5;
   const topX = 0.87;
   const topZ = 0.8;
-  const body = new THREE.Mesh(taperedBlock({ length, height, width, radius, topX, topZ }), metal(metalName));
+  const body = new THREE.Mesh(taperedBlock({ length, height, width, radius, topX, topZ }), metal(metalName, finish));
   group.add(body);
   const flatX = (length / 2 - radius) * topX * 2 * 0.97;
   const flatZ = (width / 2 - radius) * topZ * 2 * 0.95;
-  const textures = hallmark({ lines: mark, aspect: flatX / flatZ, roughness: METALS[metalName].roughness });
+  const textures = hallmark({ lines: mark, aspect: flatX / flatZ, roughness: finish.roughness ?? METALS[metalName].roughness });
   const material = metal(metalName, {
+    ...finish,
     bumpMap: textures.bump,
     bumpScale: 0.55,
     roughness: 1,
@@ -375,19 +388,24 @@ function oilBarrel({ paint = '#15181d' }) {
  * ring where the rim meets the field. The duller field against the polished rim is the
  * proof finish that makes a disc read as struck metal rather than a token.
  */
-function coin({ metalName = 'gold', svg = null, turn = -0.36 }) {
+function coin({ metalName = 'gold', svg = null, decal = null, counter = 'auto', turn = -0.36 }) {
   const R = 100;
   const T = 19;
   const rimWidth = 11;
   const lip = 2.2;
   const recess = 0.5;
   const faceZ = T / 2 - recess;
+  const faceRadius = R - rimWidth - 5;
   const body = new THREE.Group();
   let faceInfo = null;
   let chosen = metalName;
   let relief = null;
   if (svg) {
-    relief = svgRelief(svg, R - rimWidth - 5, faceZ);
+    relief = svgRelief(svg, faceRadius, faceZ, counter);
+  } else if (decal) {
+    relief = rasterDecal(decal, faceRadius, faceZ);
+  }
+  if (relief) {
     faceInfo = relief.info;
     if (chosen === 'auto') chosen = relief.info.metal;
   } else if (chosen === 'auto') {
@@ -401,7 +419,13 @@ function coin({ metalName = 'gold', svg = null, turn = -0.36 }) {
     .arc(R - rimWidth + 1.4, T / 2 + lip - 1.0, 1.0, 90, 180, 4).to(R - rimWidth - 0.9, faceZ);
   const rimFront = new THREE.Mesh(new THREE.LatheGeometry(front.points, 256), rim);
   const rimBack = new THREE.Mesh(new THREE.LatheGeometry(front.points.map((p) => new THREE.Vector2(p.x, -p.y)).reverse(), 256), rim);
-  const fieldFront = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(R - rimWidth - 0.9, faceZ), new THREE.Vector2(0, faceZ)], 256), field);
+  /* A disc decal is set into a shallow well, so the front field stops at the well's lip and a short wall leads down to the decal. */
+  const well = relief?.info.inset ? relief.info.inset : null;
+  const fieldFront = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(R - rimWidth - 0.9, faceZ), new THREE.Vector2(well ? well.radius : 0, faceZ)], 256), field);
+  if (well) {
+    const wall = new THREE.LatheGeometry([new THREE.Vector2(well.radius, faceZ), new THREE.Vector2(well.radius, faceZ - well.depth)], 256);
+    body.add(new THREE.Mesh(wall, metal(chosen, { roughness: 0.3, side: THREE.DoubleSide })));
+  }
   const fieldBack = new THREE.Mesh(new THREE.LatheGeometry([new THREE.Vector2(0, -faceZ), new THREE.Vector2(R - rimWidth - 0.9, -faceZ)], 256), field);
 
   const reeds = document.createElement('canvas');
@@ -572,6 +596,108 @@ function flipWinding(geometry) {
   }
 }
 
+/* Relief heights in stage px: the first shape sits lowest and each later shape stands a step above the one it was painted over. */
+const RELIEF_BASE = 1.2;
+const RELIEF_STEP = 0.7;
+const RELIEF_BEVEL = 0.32;
+const RELIEF_SINK = 0.3;
+/* A counter's enamel stands just above the field, so it floors the knockout a full relief step below the plate it is cut through. */
+const COUNTER_DEPTH = 0.55;
+/*
+ * A holed shape is the mark's own plate when it is round (its area over the circle
+ * through its farthest point: a disc is 1, a square 0.64, Sui's drop about 0.68) and
+ * spans the mark (so a round dot inside a larger mark never counts).
+ */
+const PLATE_ROUNDNESS = 0.9;
+const PLATE_REACH = 0.9;
+/* A plate lighter than this relative luminance would swallow a white counter, so its counters are dark ink instead. */
+const LIGHT_PLATE = 0.6;
+const COUNTER_ON_DARK = '#ffffff';
+const COUNTER_ON_LIGHT = '#141414';
+/* How far a disc decal is set down into the field. */
+const DECAL_WELL = 0.8;
+
+/* The enamel sees the studio dimmer than the metal around it, so its reflections gloss the brand's colour instead of bleaching it. */
+function enamel(overrides = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    metalness: 0,
+    roughness: 0.3,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06,
+    envMapIntensity: 0.55,
+    ...overrides,
+  });
+}
+
+/* Every subpath of a stroked path flattened by SVGLoader into triangles at the stroke's width, joins and caps included, as flat [x, y] corners. */
+function strokeTriangles(path, style) {
+  const corners = [];
+  for (const subPath of path.subPaths) {
+    const geometry = SVGLoader.pointsToStroke(subPath.getPoints(), style);
+    if (!geometry) continue;
+    const position = geometry.getAttribute('position');
+    for (let i = 0; i + 2 < position.count; i += 3) {
+      const a = new THREE.Vector2(position.getX(i), position.getY(i));
+      let b = new THREE.Vector2(position.getX(i + 1), position.getY(i + 1));
+      let c = new THREE.Vector2(position.getX(i + 2), position.getY(i + 2));
+      const twice = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+      if (Math.abs(twice) < 1e-9) continue;
+      if (twice < 0) [b, c] = [c, b];
+      corners.push(a, b, c);
+    }
+    geometry.dispose();
+  }
+  return corners;
+}
+
+/*
+ * A stroke's triangles stacked into a solid: a cap at the top and a wall along every
+ * edge that only one triangle owns. A join overlaps the segments it joins, so a few
+ * walls stand inside the stroke, where the cap hides them; the cap is the first
+ * material group and is drawn with a polygon offset, so it also wins the one-pixel
+ * depth tie along each hidden wall's top edge.
+ */
+function extrudeTriangles(corners, depth) {
+  const key = (point) => `${Math.round(point.x * 1e4)},${Math.round(point.y * 1e4)}`;
+  const edges = new Map();
+  const positions = [];
+  const normals = [];
+  for (let i = 0; i < corners.length; i += 3) {
+    const triangle = corners.slice(i, i + 3);
+    for (const point of triangle) {
+      positions.push(point.x, point.y, depth);
+      normals.push(0, 0, 1);
+    }
+    for (let k = 0; k < 3; k++) {
+      const p = triangle[k];
+      const q = triangle[(k + 1) % 3];
+      const id = [key(p), key(q)].sort().join('|');
+      const seen = edges.get(id);
+      if (seen) seen.count += 1;
+      else edges.set(id, { p, q, count: 1 });
+    }
+  }
+  const capCount = positions.length / 3;
+  for (const { p, q, count } of edges.values()) {
+    if (count !== 1) continue;
+    /* The triangles run counter-clockwise, so the outside of edge p to q is on its right. */
+    const length = p.distanceTo(q) || 1;
+    const nx = (q.y - p.y) / length;
+    const ny = -(q.x - p.x) / length;
+    for (const [x, y, z] of [[p.x, p.y, 0], [q.x, q.y, 0], [q.x, q.y, depth], [p.x, p.y, 0], [q.x, q.y, depth], [p.x, p.y, depth]]) {
+      positions.push(x, y, z);
+      normals.push(nx, ny, 0);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.addGroup(0, capCount, 0);
+  geometry.addGroup(capCount, positions.length / 3 - capCount, 1);
+  return geometry;
+}
+
 function metalFor(color) {
   const hsl = color.getHSL({}, THREE.SRGBColorSpace);
   if (hsl.l < 0.2) return 'gunmetal';
@@ -579,53 +705,101 @@ function metalFor(color) {
   return 'silver';
 }
 
-/* Relief heights in stage px: the first shape sits lowest and each later shape stands a step above the one it was painted over. */
-const RELIEF_BASE = 1.2;
-const RELIEF_STEP = 0.7;
-const RELIEF_BEVEL = 0.32;
-const RELIEF_SINK = 0.3;
+function layerColour(layer) {
+  if (!layer.gradient) return layer.color;
+  return layer.gradient.stops.reduce((sum, stop) => sum.add(stop.color), new THREE.Color(0, 0, 0)).multiplyScalar(1 / layer.gradient.stops.length);
+}
+
+/* The enamel a plate's knockouts are filled with, or null when the caller asked for the field to show through. */
+function counterColour(counter, plate) {
+  if (counter === 'none') return null;
+  if (counter !== 'auto') return new THREE.Color().setStyle(counter, THREE.SRGBColorSpace);
+  const luminance = 0.2126 * plate.r + 0.7152 * plate.g + 0.0722 * plate.b;
+  return new THREE.Color().setStyle(luminance > LIGHT_PLATE ? COUNTER_ON_LIGHT : COUNTER_ON_DARK, THREE.SRGBColorSpace);
+}
+
+/* Moves a flat, SVG-space geometry onto the coin: centred on the mark, scaled to the face, y turned up, standing on the field. */
+function placeOnFace(geometry, centre, scale, lift, faceZ) {
+  geometry.translate(-centre.x, -centre.y, lift);
+  geometry.scale(scale, -scale, scale);
+  flipWinding(geometry);
+  geometry.translate(0, 0, faceZ - RELIEF_SINK);
+}
 
 /*
- * The brand's mark struck up out of the coin's face. Every filled path of the SVG is
- * extruded in the order the SVG paints it, each a little higher than the last, in its
- * own colour as a clear-coated enamel, and the whole mark is scaled so its farthest
- * point sits just inside the rim. The rim metal is chosen from the mark's largest
- * shape: warm and saturated takes gold, near black takes gunmetal, anything else silver.
+ * The brand's mark struck up out of the coin's face. Every filled path of the SVG and
+ * every stroke is a layer, in the order the SVG paints them (a path's fill, then its
+ * stroke), each a little higher than the last, in its own colour as a clear-coated
+ * enamel, and the whole mark is scaled so its farthest point sits just inside the rim.
+ * Holes follow the path's own fill-rule (nonzero or evenodd, resolved by three's
+ * ShapePath.toShapes), so a hole shows whatever the SVG paints beneath it.
+ *
+ * Where nothing is painted beneath a hole, the SVG shows its page, and on a coin the
+ * page is the field. That is right for a glyph drawn on the field, but wrong for a mark
+ * that is a disc of its own, such as Bitcoin's orange disc with the B knocked out: the
+ * disc covers the whole field, so the knockout would turn the coin's metal into the
+ * glyph. A disc like that is the mark's plate, and its knockouts are floored with the
+ * counter enamel the brand prints there: white, dark ink on a plate too light for white,
+ * or the colour the caller names.
+ *
+ * The rim metal is chosen from the mark's largest layer: warm and saturated takes gold,
+ * near black takes gunmetal, anything else silver.
  */
-function svgRelief(svgText, faceRadius, faceZ) {
+function svgRelief(svgText, faceRadius, faceZ, counter = 'auto') {
   const data = new SVGLoader().parse(svgText);
   const root = data.xml;
   const viewBoxText = (root.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
   const viewBox = viewBoxText.length === 4 && viewBoxText.every(Number.isFinite)
     ? { width: viewBoxText[2], height: viewBoxText[3] }
     : { width: parseFloat(root.getAttribute('width')) || 100, height: parseFloat(root.getAttribute('height')) || 100 };
+  const paintable = (paint) => paint && paint !== 'none' && (!/^url\(/.test(paint) || gradientOf(root, paint));
   const layers = [];
-  let strokesSkipped = 0;
   for (const path of data.paths) {
     const style = path.userData?.style ?? {};
-    const fill = style.fill;
-    const opacity = Number(style.fillOpacity ?? 1) * Number(style.opacity ?? 1);
-    if (style.stroke && style.stroke !== 'none' && (!fill || fill === 'none')) strokesSkipped += 1;
-    if (!fill || fill === 'none' || opacity <= 0 || style.visibility === 'hidden') continue;
-    const shapes = path.toShapes();
-    if (!shapes.length) continue;
-    const gradient = gradientOf(root, fill);
-    if (/^url\(/.test(fill) && !gradient) continue;
-    layers.push({ shapes, gradient, color: gradient ? null : path.color.clone(), opacity });
+    if (style.visibility === 'hidden') continue;
+    const opacity = Number(style.opacity ?? 1);
+    const fillOpacity = Number(style.fillOpacity ?? 1) * opacity;
+    if (paintable(style.fill) && fillOpacity > 0) {
+      const shapes = path.toShapes();
+      if (shapes.length) {
+        const gradient = gradientOf(root, style.fill);
+        layers.push({ kind: 'fill', shapes, gradient, color: gradient ? null : path.color.clone(), opacity: fillOpacity });
+      }
+    }
+    const strokeOpacity = Number(style.strokeOpacity ?? 1) * opacity;
+    if (paintable(style.stroke) && strokeOpacity > 0 && Number(style.strokeWidth ?? 1) > 0) {
+      const corners = strokeTriangles(path, style);
+      if (corners.length) {
+        const gradient = gradientOf(root, style.stroke);
+        const color = gradient ? null : new THREE.Color().setStyle(style.stroke, THREE.SRGBColorSpace);
+        layers.push({ kind: 'stroke', corners, gradient, color, opacity: strokeOpacity });
+      }
+    }
   }
-  if (!layers.length) throw new Error('the face SVG has no filled shape to strike into the coin');
+  if (!layers.length) throw new Error('the face SVG has no filled or stroked shape to strike into the coin');
 
   const everyPoint = [];
   for (const layer of layers) {
     const box = new THREE.Box2();
     let area = 0;
-    for (const shape of layer.shapes) {
-      const { shape: outline, holes } = shape.extractPoints(24);
-      for (const point of outline) {
+    if (layer.kind === 'fill') {
+      layer.outlines = layer.shapes.map((shape) => shape.extractPoints(24));
+      for (const { shape: outline, holes } of layer.outlines) {
+        for (const point of outline) {
+          everyPoint.push(point);
+          box.expandByPoint(point);
+        }
+        area += Math.abs(THREE.ShapeUtils.area(outline)) - holes.reduce((sum, hole) => sum + Math.abs(THREE.ShapeUtils.area(hole)), 0);
+      }
+    } else {
+      for (let i = 0; i < layer.corners.length; i += 3) {
+        const [a, b, c] = layer.corners.slice(i, i + 3);
+        area += Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+      }
+      for (const point of layer.corners) {
         everyPoint.push(point);
         box.expandByPoint(point);
       }
-      area += Math.abs(THREE.ShapeUtils.area(outline)) - holes.reduce((sum, hole) => sum + Math.abs(THREE.ShapeUtils.area(hole)), 0);
     }
     layer.box = box;
     layer.area = area;
@@ -636,8 +810,25 @@ function svgRelief(svgText, faceRadius, faceZ) {
   const scale = faceRadius / reach;
 
   const group = new THREE.Group();
+  let plates = 0;
+  let counters = 0;
+  let counterHex = null;
   layers.forEach((layer, order) => {
+    const colourOptions = {
+      color: layer.gradient ? 0xffffff : layer.color,
+      vertexColors: Boolean(layer.gradient),
+      transparent: layer.opacity < 0.999,
+      opacity: layer.opacity,
+    };
     const depth = (RELIEF_BASE + order * RELIEF_STEP) / scale;
+    if (layer.kind === 'stroke') {
+      const geometry = extrudeTriangles(layer.corners, depth);
+      if (layer.gradient) paintGradient(geometry, layer.gradient, layer.box, viewBox);
+      placeOnFace(geometry, centre, scale, 0, faceZ);
+      const cap = enamel({ ...colourOptions, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+      group.add(new THREE.Mesh(geometry, [cap, enamel(colourOptions)]));
+      return;
+    }
     const bevel = RELIEF_BEVEL / scale;
     const geometry = new THREE.ExtrudeGeometry(layer.shapes, {
       depth,
@@ -649,37 +840,76 @@ function svgRelief(svgText, faceRadius, faceZ) {
       bevelSegments: 2,
     });
     if (layer.gradient) paintGradient(geometry, layer.gradient, layer.box, viewBox);
-    geometry.translate(-centre.x, -centre.y, bevel);
-    geometry.scale(scale, -scale, scale);
-    flipWinding(geometry);
-    geometry.translate(0, 0, faceZ - RELIEF_SINK);
-    /* The enamel sees the studio dimmer than the metal around it, so its reflections gloss the brand's colour instead of bleaching it. */
-    const material = new THREE.MeshPhysicalMaterial({
-      color: layer.gradient ? 0xffffff : layer.color,
-      vertexColors: Boolean(layer.gradient),
-      metalness: 0,
-      roughness: 0.3,
-      clearcoat: 1,
-      clearcoatRoughness: 0.06,
-      envMapIntensity: 0.55,
-      transparent: layer.opacity < 0.999,
-      opacity: layer.opacity,
+    placeOnFace(geometry, centre, scale, bevel, faceZ);
+    group.add(new THREE.Mesh(geometry, enamel(colourOptions)));
+
+    const fill = counterColour(counter, layerColour(layer));
+    layer.shapes.forEach((shape, index) => {
+      const outline = layer.outlines[index].shape;
+      if (!shape.holes.length) return;
+      const middle = new THREE.Box2().setFromPoints(outline).getCenter(new THREE.Vector2());
+      const radius = outline.reduce((most, point) => Math.max(most, point.distanceTo(middle)), 0) || 1;
+      const roundness = Math.abs(THREE.ShapeUtils.area(outline)) / (Math.PI * radius * radius);
+      if (roundness < PLATE_ROUNDNESS || radius < PLATE_REACH * reach) return;
+      plates += 1;
+      if (!fill) return;
+      /* The counter is the hole's own outline at the plate's curve resolution, so its edge meets the foot of the plate's wall exactly. */
+      const knockouts = shape.holes.map((hole) => new THREE.Shape(hole.getPoints(32)));
+      const floor = new THREE.ExtrudeGeometry(knockouts, { depth: COUNTER_DEPTH / scale, curveSegments: 32, bevelEnabled: false });
+      placeOnFace(floor, centre, scale, 0, faceZ);
+      group.add(new THREE.Mesh(floor, enamel({ color: fill })));
+      counters += knockouts.length;
+      counterHex = `#${fill.getHexString(THREE.SRGBColorSpace)}`;
     });
-    group.add(new THREE.Mesh(geometry, material));
   });
 
   const largest = layers.reduce((best, layer) => (layer.area > best.area ? layer : best), layers[0]);
-  const dominant = largest.gradient
-    ? largest.gradient.stops.reduce((sum, stop) => sum.add(stop.color), new THREE.Color(0, 0, 0)).multiplyScalar(1 / largest.gradient.stops.length)
-    : largest.color;
+  const dominant = layerColour(largest);
   return {
     group,
     info: {
+      kind: 'svg',
       layers: layers.length,
+      fills: layers.filter((layer) => layer.kind === 'fill').length,
+      strokes: layers.filter((layer) => layer.kind === 'stroke').length,
       gradients: layers.filter((layer) => layer.gradient).length,
-      strokes_skipped: strokesSkipped,
+      plates,
+      counters,
+      counter: counterHex,
       dominant: `#${dominant.getHexString(THREE.SRGBColorSpace)}`,
       metal: metalFor(dominant),
+    },
+  };
+}
+
+/*
+ * A raster mark set into the coin's face as a clear-coated decal. The build script has
+ * already trimmed the mark, centred it on a square and decided whether it is a disc. A
+ * disc is cut to a circle and laid at the bottom of a shallow well in the field, the way
+ * an enamel inlay is set, so the coin's own field and rim frame it; any other outline
+ * lies on the field with its own transparency, its farthest pixel just inside the rim.
+ */
+function rasterDecal({ image, disc, dominant }, faceRadius, faceZ) {
+  const texture = new THREE.Texture(image);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  const material = disc
+    ? enamel({ map: texture })
+    : enamel({ map: texture, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const geometry = disc ? new THREE.CircleGeometry(faceRadius, 256) : new THREE.PlaneGeometry(2 * faceRadius, 2 * faceRadius);
+  const decal = new THREE.Mesh(geometry, material);
+  decal.position.z = disc ? faceZ - DECAL_WELL : faceZ + 0.05;
+  const group = new THREE.Group();
+  group.add(decal);
+  return {
+    group,
+    info: {
+      kind: 'png',
+      disc: Boolean(disc),
+      dominant,
+      metal: metalFor(new THREE.Color().setStyle(dominant, THREE.SRGBColorSpace)),
+      inset: disc ? { radius: faceRadius, depth: DECAL_WELL } : null,
     },
   };
 }
@@ -754,9 +984,13 @@ function build(job) {
       return { root, info: { size: { length: 250, height: 60, width: 100 } } };
     }
     case 'silver-bar': {
-      const root = bar({ metalName: 'silver', mark: SILVER_MARK });
+      const root = bar({ metalName: 'silver', mark: SILVER_MARK, finish: SILVER_BAR_FINISH });
       root.rotation.y = -0.4;
-      return { root, info: { size: { length: 250, height: 60, width: 100 } } };
+      return {
+        root,
+        info: { size: { length: 250, height: 60, width: 100 }, finish: SILVER_BAR_FINISH, exposure: SILVER_BAR_EXPOSURE },
+        exposure: SILVER_BAR_EXPOSURE,
+      };
     }
     case 'gold-bar-stack':
       return { root: barStack(), info: { bars: 6 } };
@@ -764,7 +998,8 @@ function build(job) {
       return { root: oilBarrel(options), info: { size: { diameter: 180, height: 268 } } };
     case 'coin-blank':
     case 'coin': {
-      const made = coin({ metalName: options.metal || 'auto', svg: job.svg || null });
+      const decal = job.image ? { image: job.image, ...job.face } : null;
+      const made = coin({ metalName: options.metal || 'auto', svg: job.svg || null, decal, counter: options.counter || 'auto' });
       return { root: made.root, info: { size: { diameter: 200, thickness: 15 }, ...made.info } };
     }
     case 'podium':
@@ -819,11 +1054,23 @@ function dispose(scene) {
   });
 }
 
+/* A raster face arrives as a data URL; the texture needs the decoded image before the scene is built. */
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('the face PNG could not be decoded'));
+    image.src = source;
+  });
+}
+
 async function render(job) {
   const scene = new THREE.Scene();
   scene.environment = studioEnvironment();
   scene.environmentIntensity = job.environmentIntensity ?? 1.0;
-  const { root, info } = build(job);
+  if (job.png) job.image = await loadImage(job.png);
+  /* An object may ask for its own exposure; every other object renders at 1, so one object's pass never shifts the rest. */
+  const { root, info, exposure = 1.0 } = build(job);
   scene.add(root);
   root.traverse((object) => {
     if (!object.isMesh) return;
@@ -866,6 +1113,7 @@ async function render(job) {
   scene.add(key, key.target);
 
   renderer.setSize(job.size, job.size, false);
+  renderer.toneMappingExposure = exposure;
   renderer.render(scene, camera);
   const png = canvas.toDataURL('image/png');
   dispose(scene);

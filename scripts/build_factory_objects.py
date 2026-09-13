@@ -4,6 +4,7 @@
     python3 scripts/build_factory_objects.py render --out /tmp/factory-render [--only gold-bar]
     python3 scripts/build_factory_objects.py publish --from /tmp/factory-render
     python3 scripts/build_factory_objects.py coin --face-svg mark.svg --out coin.png --size 1024
+    python3 scripts/build_factory_objects.py coin --face-png mark.png --out coin.png --size 1024
     python3 scripts/build_factory_objects.py vendor
 
 Fluent's objects stop at 256 px and no free set with transparent objects at 512 px or
@@ -25,9 +26,10 @@ has no Playwright, copy `scripts/` into a container that has it, run `render` th
 copy the output directory back and run `publish` here: publishing needs only Pillow.
 
 The `coin` command is the one place a brand enters: it strikes a given SVG mark into
-the coin's face, in the mark's own colours, and writes one PNG wherever it is told. It
-never writes into this package; a brand's coin belongs to the package that owns the
-brand (keel-finlogo).
+the coin's face, in the mark's own colours, or sets a raster mark into the face as a
+clear-coated decal when the brand publishes no vector, and writes one PNG wherever it
+is told. It never writes into this package; a brand's coin belongs to the package that
+owns the brand (keel-finlogo).
 """
 
 from __future__ import annotations
@@ -38,6 +40,7 @@ import hashlib
 import io
 import json
 import math
+import re
 import shutil
 import sys
 import tarfile
@@ -48,7 +51,7 @@ from _common import CACHE, LICENSES, STATIC, fetch_bytes, remove_stale_files, re
 SET = "factory"
 SOURCE = "https://github.com/miladsafaei-me/keel-visuals"
 # Bump when a scene in factory.js changes, so every rendered file's source_version moves with it.
-FACTORY_VERSION = "1"
+FACTORY_VERSION = "2"
 
 FACTORY_DIR = Path(__file__).resolve().parent / "factory"
 THREE_VERSION = "0.186.0"
@@ -72,6 +75,16 @@ ORIGIN = "http://keel-visuals-factory.local"
 SIZES = (1024, 512)
 # Rendered at twice the largest size and downsampled, so edges are antialiased by real coverage.
 SUPERSAMPLE = 2
+
+# A raster face's pixel counts as part of the mark from this alpha up.
+FACE_ALPHA = 128
+# A raster mark is a disc when its box is square within 2 %, its opaque pixels fill 97 %
+# of the circle through that box, and no more than 1 % of them fall outside it.
+DISC_SQUARENESS = 0.02
+DISC_FILL = 0.97
+DISC_SPILL = 0.01
+# A disc is cut this far inside its own radius, so the anti-aliased edge never reaches the coin.
+DISC_CROP = 0.985
 
 # The stage demo's camera, repeated here only to write the elevation into the manifest.
 FOCAL = 1400
@@ -292,10 +305,74 @@ def vendor() -> None:
     print(f"three {THREE_VERSION}: {len(THREE_FILES)} files vendored into {VENDOR}")
 
 
-def coin(face_svg: Path, out: Path, size: int, metal: str) -> None:
-    svg = face_svg.read_text(encoding="utf-8")
+def raster_face(path: Path) -> tuple[str, dict]:
+    """Trim a raster mark, centre it on a square texture, and say whether it is a disc.
+
+    A mark whose opaque pixels fill the circle through its bounding box, and almost
+    nothing outside it, is a disc: the texture is that circle's square, cut a little
+    inside the disc's own edge so its anti-aliased rim never shows, and flattened onto
+    the mark's mean colour so a stray transparent pixel cannot paint black. Any other
+    outline keeps its transparency, on a square whose half-width is the distance from
+    the mark's centre to its farthest opaque pixel, so the page can put that pixel just
+    inside the rim the way it scales an SVG mark. The mean colour of the opaque pixels
+    is the colour the rim metal is chosen from.
+    """
+    from PIL import Image, ImageDraw
+
+    image = Image.open(path).convert("RGBA")
+    alpha = image.getchannel("A")
+    solid = alpha.point(lambda value: 255 if value >= FACE_ALPHA else 0)
+    box = solid.getbbox()
+    if box is None:
+        raise SystemExit(f"{path} has no opaque pixel to put on a coin")
+    left, top, right, bottom = box
+    cx, cy = (left + right) / 2, (top + bottom) / 2
+    radius = max(right - left, bottom - top) / 2
+
+    circle = Image.new("L", image.size, 0)
+    ImageDraw.Draw(circle).ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=255)
+    solid_pixels = solid.histogram()[255]
+    circle_pixels = circle.histogram()[255]
+    inside = sum(1 for opaque, within in zip(solid.tobytes(), circle.tobytes()) if opaque and within)
+    square = abs((right - left) - (bottom - top)) <= DISC_SQUARENESS * 2 * radius
+    disc = square and inside >= DISC_FILL * circle_pixels and solid_pixels - inside <= DISC_SPILL * solid_pixels
+
+    rgb = [0.0, 0.0, 0.0]
+    weight = 0
+    reach = 0.0
+    pixels = image.tobytes()
+    for index in range(image.width * image.height):
+        red, green, blue, opacity = pixels[4 * index : 4 * index + 4]
+        if opacity < FACE_ALPHA:
+            continue
+        rgb[0] += red
+        rgb[1] += green
+        rgb[2] += blue
+        weight += 1
+        x, y = index % image.width + 0.5, index // image.width + 0.5
+        reach = max(reach, math.hypot(x - cx, y - cy))
+    dominant = "#" + "".join(f"{round(channel / weight):02x}" for channel in rgb)
+
+    half = radius * DISC_CROP if disc else reach
+    crop = image.crop((round(cx - half), round(cy - half), round(cx + half), round(cy + half)))
+    if disc:
+        ground = Image.new("RGBA", crop.size, dominant)
+        ground.alpha_composite(crop)
+        crop = ground
+    buffer = io.BytesIO()
+    crop.save(buffer, format="PNG")
+    face = {"disc": disc, "dominant": dominant, "source_px": list(image.size), "texture_px": list(crop.size)}
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii"), face
+
+
+def coin(face_svg: Path | None, face_png: Path | None, out: Path, size: int, metal: str, counter: str) -> None:
+    job = {"object": "coin", "options": {"metal": metal, "counter": counter}, "size": size * SUPERSAMPLE}
+    if face_svg:
+        job["svg"] = face_svg.read_text(encoding="utf-8")
+    else:
+        job["png"], job["face"] = raster_face(face_png)
     with Factory() as factory:
-        image, meta = factory.render({"object": "coin", "svg": svg, "options": {"metal": metal}, "size": size * SUPERSAMPLE})
+        image, meta = factory.render(job)
         renderer = factory.renderer_info()
     out.parent.mkdir(parents=True, exist_ok=True)
     downsample(image, size).save(out, format="PNG", optimize=True)
@@ -314,6 +391,13 @@ def coin(face_svg: Path, out: Path, size: int, metal: str) -> None:
     print()
 
 
+def counter_choice(value: str) -> str:
+    """`auto`, `none` or a #rrggbb colour; anything else is refused before Chromium starts."""
+    if value in {"auto", "none"} or re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+        return value
+    raise argparse.ArgumentTypeError(f"--counter takes auto, none or #rrggbb, not {value!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render the keel-visuals object factory.")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -323,11 +407,19 @@ def main() -> int:
     render_cmd.add_argument("--only", nargs="*", help="render only these objects, for iterating on one")
     publish_cmd = commands.add_parser("publish", help="write a finished render into the package (needs Pillow)")
     publish_cmd.add_argument("--from", dest="source", type=Path, required=True)
-    coin_cmd = commands.add_parser("coin", help="strike an SVG mark into a coin and write one PNG")
-    coin_cmd.add_argument("--face-svg", type=Path, required=True)
+    coin_cmd = commands.add_parser("coin", help="strike a brand mark into a coin and write one PNG")
+    face = coin_cmd.add_mutually_exclusive_group(required=True)
+    face.add_argument("--face-svg", type=Path, help="a vector mark, extruded into the face")
+    face.add_argument("--face-png", type=Path, help="a raster mark, set into the face as a clear-coated decal")
     coin_cmd.add_argument("--out", type=Path, required=True)
     coin_cmd.add_argument("--size", type=int, default=1024)
     coin_cmd.add_argument("--metal", choices=["auto", "gold", "silver", "gunmetal"], default="auto")
+    coin_cmd.add_argument(
+        "--counter",
+        type=counter_choice,
+        default="auto",
+        help="the enamel in a disc mark's knockouts: auto (white, or dark ink on a light disc), none (the field shows), or #rrggbb",
+    )
     commands.add_parser("vendor", help=f"re-fetch three.js {THREE_VERSION} and check it against the pinned hashes")
     args = parser.parse_args()
 
@@ -340,7 +432,7 @@ def main() -> int:
     elif args.command == "publish":
         publish_set(args.source)
     elif args.command == "coin":
-        coin(args.face_svg, args.out, args.size, args.metal)
+        coin(args.face_svg, args.face_png, args.out, args.size, args.metal, args.counter)
     elif args.command == "vendor":
         vendor()
     return 0
