@@ -61184,7 +61184,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -61321,7 +61321,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -61695,7 +61695,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -61967,7 +61967,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -62274,7 +62274,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -62376,7 +62376,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -62444,7 +62444,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -62750,7 +62750,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -62987,7 +62987,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -63123,7 +63123,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -63225,7 +63225,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -63361,7 +63361,7 @@
    "license": "MIT",
    "source": "https://github.com/tabler/tabler-icons",
    "source_version": "3.46.0",
-   "trademark": false,
+   "trademark": true,
    "default_variant": "outline",
    "variants": {
     "outline": {
@@ -179103,6 +179103,535 @@
    },
    "extra": {
     "scale": "1:110m"
+   }
+  },
+  "object/factory/coin-blank": {
+   "kind": "object",
+   "set": "factory",
+   "name": "coin-blank",
+   "title": "blank coin",
+   "tags": [
+    "blank",
+    "coin",
+    "crypto",
+    "metal",
+    "mint",
+    "money",
+    "token"
+   ],
+   "license": "Keel original",
+   "source": "https://github.com/miladsafaei-me/keel-visuals",
+   "source_version": "factory-1+three-0.186.0",
+   "trademark": false,
+   "default_variant": "1024",
+   "variants": {
+    "1024": {
+     "file": "objects/factory/coin-blank/1024.png",
+     "format": "png",
+     "sha256": "27bf65fedf1c0d564da254d80b800bb79a4bff6d30be921b11205fec6386f63a",
+     "width": 1024,
+     "height": 1024
+    },
+    "512": {
+     "file": "objects/factory/coin-blank/512.png",
+     "format": "png",
+     "sha256": "d394c2af9c0f938355a5dab3ba28a227e4acc142018b38d0784a45f6cd2b39ef",
+     "width": 512,
+     "height": 512
+    },
+    "silver-1024": {
+     "file": "objects/factory/coin-blank/silver-1024.png",
+     "format": "png",
+     "sha256": "3e2e2561b8c9463a55df2e36c340e77fd90ddad9bb5b7df56390a8f5375f1c87",
+     "width": 1024,
+     "height": 1024
+    },
+    "silver-512": {
+     "file": "objects/factory/coin-blank/silver-512.png",
+     "format": "png",
+     "sha256": "871bda00178b5062d04e780d7c507049140c1824dfc2f8598801fe96fe91519a",
+     "width": 512,
+     "height": 512
+    },
+    "gunmetal-1024": {
+     "file": "objects/factory/coin-blank/gunmetal-1024.png",
+     "format": "png",
+     "sha256": "acad260ef5b82f132cb03056fa003de34b3ff53176e9e9174a3ab345e3051107",
+     "width": 1024,
+     "height": 1024
+    },
+    "gunmetal-512": {
+     "file": "objects/factory/coin-blank/gunmetal-512.png",
+     "format": "png",
+     "sha256": "3efe17787132c07069a77b9c95a72120295c042bbd2dbf7f9187cf9846144311",
+     "width": 512,
+     "height": 512
+    }
+   },
+   "extra": {
+    "camera": {
+     "elevation_deg": 13.65,
+     "focal_px": 1400,
+     "eye_height_px": 340,
+     "distance_px": 1400,
+     "image_plane": "vertical"
+    },
+    "light": [
+     -0.42,
+     1
+    ],
+    "light_direction": [
+     0.3781,
+     0.9002,
+     0.216
+    ],
+    "ground_x_px": 504.0,
+    "ground_y_px": 965.1,
+    "stage_width_px": 224.1,
+    "shadow": "none",
+    "tones": [
+     "silver",
+     "gunmetal"
+    ],
+    "object": {
+     "size": {
+      "diameter": 200,
+      "thickness": 15
+     },
+     "metal": "gold",
+     "face": null
+    },
+    "renderer": {
+     "three": "0.186.0",
+     "three_revision": "186",
+     "chromium": "151.0.7922.34",
+     "gl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+   }
+  },
+  "object/factory/gold-bar": {
+   "kind": "object",
+   "set": "factory",
+   "name": "gold-bar",
+   "title": "gold bar",
+   "tags": [
+    "bar",
+    "bullion",
+    "commodity",
+    "fine gold",
+    "gold",
+    "ingot",
+    "metal",
+    "precious metal",
+    "xau"
+   ],
+   "license": "Keel original",
+   "source": "https://github.com/miladsafaei-me/keel-visuals",
+   "source_version": "factory-1+three-0.186.0",
+   "trademark": false,
+   "default_variant": "1024",
+   "variants": {
+    "1024": {
+     "file": "objects/factory/gold-bar/1024.png",
+     "format": "png",
+     "sha256": "6f5fa662fe45ccf57a341cce372200166b1b75f6cad6c647a76caa75b7923c24",
+     "width": 1024,
+     "height": 1024
+    },
+    "512": {
+     "file": "objects/factory/gold-bar/512.png",
+     "format": "png",
+     "sha256": "42ca1d902769080b576f81cc159ad1db35fca1e6f94c8509b16b248060fb5cf9",
+     "width": 512,
+     "height": 512
+    }
+   },
+   "extra": {
+    "camera": {
+     "elevation_deg": 13.65,
+     "focal_px": 1400,
+     "eye_height_px": 340,
+     "distance_px": 1400,
+     "image_plane": "vertical"
+    },
+    "light": [
+     -0.42,
+     1
+    ],
+    "light_direction": [
+     0.3781,
+     0.9002,
+     0.216
+    ],
+    "ground_x_px": 509.9,
+    "ground_y_px": 603.2,
+    "stage_width_px": 288.0,
+    "shadow": "none",
+    "tones": [],
+    "object": {
+     "size": {
+      "length": 250,
+      "height": 60,
+      "width": 100
+     }
+    },
+    "renderer": {
+     "three": "0.186.0",
+     "three_revision": "186",
+     "chromium": "151.0.7922.34",
+     "gl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+   }
+  },
+  "object/factory/gold-bar-stack": {
+   "kind": "object",
+   "set": "factory",
+   "name": "gold-bar-stack",
+   "title": "stack of gold bars",
+   "tags": [
+    "bars",
+    "bullion",
+    "commodity",
+    "gold",
+    "ingot",
+    "pyramid",
+    "reserve",
+    "stack",
+    "wealth",
+    "xau"
+   ],
+   "license": "Keel original",
+   "source": "https://github.com/miladsafaei-me/keel-visuals",
+   "source_version": "factory-1+three-0.186.0",
+   "trademark": false,
+   "default_variant": "1024",
+   "variants": {
+    "1024": {
+     "file": "objects/factory/gold-bar-stack/1024.png",
+     "format": "png",
+     "sha256": "1bfb59b97bc0f1884c7fe0e9bf895d7c799a8d92b03e2b64941a151f0b7f7b69",
+     "width": 1024,
+     "height": 1024
+    },
+    "512": {
+     "file": "objects/factory/gold-bar-stack/512.png",
+     "format": "png",
+     "sha256": "b8a15e0dff2ffe8fb4c5b059c7760d0991d9fec4c3ce5a2537da3b0b7b4f8e24",
+     "width": 512,
+     "height": 512
+    }
+   },
+   "extra": {
+    "camera": {
+     "elevation_deg": 13.65,
+     "focal_px": 1400,
+     "eye_height_px": 340,
+     "distance_px": 1400,
+     "image_plane": "vertical"
+    },
+    "light": [
+     -0.42,
+     1
+    ],
+    "light_direction": [
+     0.3781,
+     0.9002,
+     0.216
+    ],
+    "ground_x_px": 521.6,
+    "ground_y_px": 685.7,
+    "stage_width_px": 382.1,
+    "shadow": "none",
+    "tones": [],
+    "object": {
+     "bars": 6
+    },
+    "renderer": {
+     "three": "0.186.0",
+     "three_revision": "186",
+     "chromium": "151.0.7922.34",
+     "gl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+   }
+  },
+  "object/factory/oil-barrel": {
+   "kind": "object",
+   "set": "factory",
+   "name": "oil-barrel",
+   "title": "oil barrel",
+   "tags": [
+    "barrel",
+    "brent",
+    "commodity",
+    "crude",
+    "drum",
+    "energy",
+    "oil",
+    "petroleum",
+    "wti"
+   ],
+   "license": "Keel original",
+   "source": "https://github.com/miladsafaei-me/keel-visuals",
+   "source_version": "factory-1+three-0.186.0",
+   "trademark": false,
+   "default_variant": "1024",
+   "variants": {
+    "1024": {
+     "file": "objects/factory/oil-barrel/1024.png",
+     "format": "png",
+     "sha256": "9f5efd56d80015575773d9163a6e26f509a4e5b39aa4243ab4ce9ce5e40be427",
+     "width": 1024,
+     "height": 1024
+    },
+    "512": {
+     "file": "objects/factory/oil-barrel/512.png",
+     "format": "png",
+     "sha256": "8015d270feec08930cd4393c372cf6c911cedc4862ecf3c1630cb8236ad86977",
+     "width": 512,
+     "height": 512
+    },
+    "blue-1024": {
+     "file": "objects/factory/oil-barrel/blue-1024.png",
+     "format": "png",
+     "sha256": "f7d7ca9a2972279b915424ac40e78c0be3a12ff39647d09de6196b80c1338434",
+     "width": 1024,
+     "height": 1024
+    },
+    "blue-512": {
+     "file": "objects/factory/oil-barrel/blue-512.png",
+     "format": "png",
+     "sha256": "eecc62615b4c0213e141261e8ca7f97f9b009e82f27f7361cd155fb009c2185c",
+     "width": 512,
+     "height": 512
+    }
+   },
+   "extra": {
+    "camera": {
+     "elevation_deg": 13.65,
+     "focal_px": 1400,
+     "eye_height_px": 340,
+     "distance_px": 1400,
+     "image_plane": "vertical"
+    },
+    "light": [
+     -0.42,
+     1
+    ],
+    "light_direction": [
+     0.3781,
+     0.9002,
+     0.216
+    ],
+    "ground_x_px": 512.0,
+    "ground_y_px": 906.0,
+    "stage_width_px": 324.3,
+    "shadow": "none",
+    "tones": [
+     "blue"
+    ],
+    "object": {
+     "size": {
+      "diameter": 180,
+      "height": 268
+     }
+    },
+    "renderer": {
+     "three": "0.186.0",
+     "three_revision": "186",
+     "chromium": "151.0.7922.34",
+     "gl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+   }
+  },
+  "object/factory/podium": {
+   "kind": "object",
+   "set": "factory",
+   "name": "podium",
+   "title": "podium with a lit rim",
+   "tags": [
+    "base",
+    "display",
+    "pedestal",
+    "platform",
+    "podium",
+    "showcase",
+    "stage"
+   ],
+   "license": "Keel original",
+   "source": "https://github.com/miladsafaei-me/keel-visuals",
+   "source_version": "factory-1+three-0.186.0",
+   "trademark": false,
+   "default_variant": "1024",
+   "variants": {
+    "1024": {
+     "file": "objects/factory/podium/1024.png",
+     "format": "png",
+     "sha256": "a00061bb6148fd957ce6b79e43c11a91ceae422ecd65559a010cff8811fda74c",
+     "width": 1024,
+     "height": 1024
+    },
+    "512": {
+     "file": "objects/factory/podium/512.png",
+     "format": "png",
+     "sha256": "3a256c98fd270faf23aff4c19309c2cac9b237ba8bb77c8f082d915eb3a530e0",
+     "width": 512,
+     "height": 512
+    },
+    "green-1024": {
+     "file": "objects/factory/podium/green-1024.png",
+     "format": "png",
+     "sha256": "7f6f99500a769f905529c1191d8ac7b72de711a8c0550d1f3359da9daa5af7a6",
+     "width": 1024,
+     "height": 1024
+    },
+    "green-512": {
+     "file": "objects/factory/podium/green-512.png",
+     "format": "png",
+     "sha256": "9b4eb0754f014472da64d869645b2f4187bbe55804b966c23809e2e4acf07d0c",
+     "width": 512,
+     "height": 512
+    },
+    "blue-1024": {
+     "file": "objects/factory/podium/blue-1024.png",
+     "format": "png",
+     "sha256": "548363bf74b727dbdad64b54c6693b1c1b0e0d18e12f59512bea18db116eacac",
+     "width": 1024,
+     "height": 1024
+    },
+    "blue-512": {
+     "file": "objects/factory/podium/blue-512.png",
+     "format": "png",
+     "sha256": "803f6304dd421e57e65fd8f5de4c3d7904625b0b34b9fdd173dbd8caef0c26dd",
+     "width": 512,
+     "height": 512
+    },
+    "amber-1024": {
+     "file": "objects/factory/podium/amber-1024.png",
+     "format": "png",
+     "sha256": "8708a3880af67ba646e2921ad324cd3b1ba99b84dc571cd1e53c11c06e5b26af",
+     "width": 1024,
+     "height": 1024
+    },
+    "amber-512": {
+     "file": "objects/factory/podium/amber-512.png",
+     "format": "png",
+     "sha256": "d9b43bac12bc91115001ad137fd018311d86291079126c265978e7aded18f60b",
+     "width": 512,
+     "height": 512
+    }
+   },
+   "extra": {
+    "camera": {
+     "elevation_deg": 13.65,
+     "focal_px": 1400,
+     "eye_height_px": 340,
+     "distance_px": 1400,
+     "image_plane": "vertical"
+    },
+    "light": [
+     -0.42,
+     1
+    ],
+    "light_direction": [
+     0.3781,
+     0.9002,
+     0.216
+    ],
+    "ground_x_px": 512.0,
+    "ground_y_px": 544.3,
+    "stage_width_px": 582.1,
+    "shadow": "none",
+    "tones": [
+     "green",
+     "blue",
+     "amber"
+    ],
+    "object": {
+     "size": {
+      "diameter": 460,
+      "height": 58
+     }
+    },
+    "renderer": {
+     "three": "0.186.0",
+     "three_revision": "186",
+     "chromium": "151.0.7922.34",
+     "gl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+   }
+  },
+  "object/factory/silver-bar": {
+   "kind": "object",
+   "set": "factory",
+   "name": "silver-bar",
+   "title": "silver bar",
+   "tags": [
+    "bar",
+    "bullion",
+    "commodity",
+    "fine silver",
+    "ingot",
+    "metal",
+    "precious metal",
+    "silver",
+    "xag"
+   ],
+   "license": "Keel original",
+   "source": "https://github.com/miladsafaei-me/keel-visuals",
+   "source_version": "factory-1+three-0.186.0",
+   "trademark": false,
+   "default_variant": "1024",
+   "variants": {
+    "1024": {
+     "file": "objects/factory/silver-bar/1024.png",
+     "format": "png",
+     "sha256": "7b1ac4b10d6b561ad76bb2e2b6b27f0642d8ed94968a530838d02d1a79aa7b19",
+     "width": 1024,
+     "height": 1024
+    },
+    "512": {
+     "file": "objects/factory/silver-bar/512.png",
+     "format": "png",
+     "sha256": "6a25cb1644f1b8fb1d50cacb8ae182b901c2c5a084b68d3b3b9401fc76543642",
+     "width": 512,
+     "height": 512
+    }
+   },
+   "extra": {
+    "camera": {
+     "elevation_deg": 13.65,
+     "focal_px": 1400,
+     "eye_height_px": 340,
+     "distance_px": 1400,
+     "image_plane": "vertical"
+    },
+    "light": [
+     -0.42,
+     1
+    ],
+    "light_direction": [
+     0.3781,
+     0.9002,
+     0.216
+    ],
+    "ground_x_px": 509.9,
+    "ground_y_px": 603.2,
+    "stage_width_px": 288.0,
+    "shadow": "none",
+    "tones": [],
+    "object": {
+     "size": {
+      "length": 250,
+      "height": 60,
+      "width": 100
+     }
+    },
+    "renderer": {
+     "three": "0.186.0",
+     "three_revision": "186",
+     "chromium": "151.0.7922.34",
+     "gl": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
    }
   },
   "object/fluent/1st-place-medal": {

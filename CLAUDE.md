@@ -30,7 +30,7 @@ a breaking change for every plan that names it: bump the minor version and say s
 | kind | what it is | how a renderer may use it |
 |---|---|---|
 | `icon` | flat vector glyph painting in `currentColor` | inline the SVG so it takes the surrounding colour; through `<img>` it paints black |
-| `object` | rendered 3D object with its own colour and light | raster: never wider than `Variant.max_render_px()` |
+| `object` | rendered 3D object with its own colour and light | raster: never wider than `Variant.max_render_px()`; a factory object is stood on the ground by `extra.ground_y_px` |
 | `map` | land polygons, and precomputed dot grids (SVG + JSON) | the dot SVG paints in `currentColor` |
 | `frame` | device or window frame with a real hole for its screen | place content by `extra.screen`, never by eye |
 
@@ -51,6 +51,7 @@ consumer that did not re-pin.
 |---|---|---|
 | `tabler` | `scripts/sync_tabler.py --version X.Y.Z` | npm `@tabler/icons` release |
 | `fluent` | `scripts/sync_fluent3d.py --ref <sha>` | `microsoft/fluentui-emoji` commit |
+| `factory` | `scripts/build_factory_objects.py build`, or `render` where Playwright runs and `publish` here | three.js `THREE_VERSION` vendored in `scripts/factory/vendor/`, every file's SHA-256 pinned in the script; `FACTORY_VERSION` for the scenes |
 | `natural-earth` | `scripts/build_worldmap.py --tag vX.Y.Z` | `nvkelso/natural-earth-vector` tag |
 | `keel` | `scripts/build_frames.py` | drawn here |
 
@@ -59,6 +60,19 @@ white background, and its public repository holds the website, not the icons; th
 transparent originals sit behind a Figma plugin and a browser download. A preview
 with its background cut out is not what careful hand work would produce, so the
 set waits until a transparent source can be pinned.
+
+## The factory draws; it never takes a brand
+
+`factory` objects are Keel originals rendered from `scripts/factory/factory.js` in
+headless Chromium (WebGL2 on SwiftShader, which needs `--enable-unsafe-swiftshader`),
+on the landing-cover stage's one camera and light, with no ground shadow. Change a
+scene and you bump `FACTORY_VERSION` and re-render the whole set; a partial render
+cannot be published. Read every render on a dark and a light ground, and crop at
+native size, before publishing: a test cannot tell a gold bar from brass.
+
+The `coin` command strikes a brand's SVG into a coin and writes the PNG wherever it
+is told. It must never write under `static/keel_visuals/`: a branded coin belongs to
+keel-finlogo, which owns the brand.
 
 ## Curation is a rule, not a hand-picked list
 
@@ -70,9 +84,15 @@ constants and re-run; never delete files by hand.
 ## Trademarks
 
 `trademark: true` marks a third party's brand (Tabler's `brand-*` icons, a social
-network's 3D icon). **The file's licence covers the file, never the right to use
-the brand.** This package only records the fact; whether a trademark may appear
-on an image is the consumer's decision, and a consumer should refuse it by default.
+network's 3D icon, a cryptocurrency's mark). **The file's licence covers the file,
+never the right to use the brand.** This package only records the fact; whether a
+trademark may appear on an image is the consumer's decision, and a consumer should
+refuse it by default.
+
+Coins are flagged by rule, never by editing the manifest: `CRYPTO_CURRENCIES` in
+`sync_tabler.py` names every coin whose `currency-*` icon is a brand, and the sync
+stops on a crypto-tagged currency icon the list does not name. Fiat signs are not
+trademarks.
 
 ## No models, no migrations, no URL
 

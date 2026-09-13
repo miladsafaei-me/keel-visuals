@@ -4,7 +4,8 @@
 
 Tabler's SVGs paint with `currentColor`, so an icon takes the colour of whatever it
 is inlined into; drawn through a plain `<img>` it paints black. Brand icons
-(`brand-*`, category Brand) are marked as trademarks.
+(`brand-*`, category Brand) and cryptocurrency marks (`currency-<coin>`) are marked
+as trademarks.
 """
 
 from __future__ import annotations
@@ -19,6 +20,46 @@ from _common import LICENSES, STATIC, fetch_bytes, remove_stale_files, replace_s
 SET = "tabler"
 SOURCE = "https://github.com/tabler/tabler-icons"
 STYLES = ("outline", "filled")
+
+# A cryptocurrency's symbol is that project's brand mark, even though Tabler files it
+# under Currencies beside the fiat signs: the B of `currency-bitcoin` names Bitcoin the
+# way a broker's logo names the broker, while `currency-euro` is a public sign no one
+# owns. The rule keys on the name after `currency-`. A coin Tabler does not ship yet
+# (`dash`) is listed anyway, so the release that adds it is flagged on the day it lands.
+CRYPTO_CURRENCIES = frozenset({
+    "bitcoin",
+    "dash",
+    "dogecoin",
+    "ethereum",
+    "husd",  # Huobi's dollar stablecoin
+    "litecoin",
+    "monero",
+    "nano",
+    "ripple",
+    "solana",
+    "tether",
+    "xrp",
+    "zcash",
+})
+
+# Tags Tabler puts only on coins. A `currency-*` icon carrying one whose name is not in
+# CRYPTO_CURRENCIES stops the sync, so a coin added upstream can never ship unflagged.
+CRYPTO_TAGS = frozenset({"crypto", "cryptocurrency", "blockchain"})
+
+
+def is_crypto_currency(name: str, tags: set[str]) -> bool:
+    """Whether a `currency-*` icon is a coin's mark; stops on a coin the rule does not name."""
+    if not name.startswith("currency-"):
+        return False
+    coin = name.removeprefix("currency-")
+    if coin in CRYPTO_CURRENCIES:
+        return True
+    if tags & CRYPTO_TAGS:
+        raise SystemExit(
+            f"{name} is tagged {sorted(tags & CRYPTO_TAGS)} but {coin!r} is not in CRYPTO_CURRENCIES; "
+            "add it there if it is a coin's mark, so it ships as a trademark"
+        )
+    return False
 
 
 def main() -> int:
@@ -50,16 +91,17 @@ def main() -> int:
         if not variants:
             continue
         category = meta.get("category") or ""
+        tags = {str(tag) for tag in meta.get("tags", [])}
         entries[f"icon/{SET}/{name}"] = {
             "kind": "icon",
             "set": SET,
             "name": name,
             "title": name.replace("-", " "),
-            "tags": sorted({str(tag) for tag in meta.get("tags", [])}),
+            "tags": sorted(tags),
             "license": "MIT",
             "source": SOURCE,
             "source_version": args.version,
-            "trademark": category == "Brand" or name.startswith("brand-"),
+            "trademark": category == "Brand" or name.startswith("brand-") or is_crypto_currency(name, tags),
             "default_variant": "outline" if "outline" in variants else next(iter(variants)),
             "variants": variants,
             "extra": {"category": category, "paint": "currentColor"},

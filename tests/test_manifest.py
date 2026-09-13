@@ -7,7 +7,12 @@ Run from the repository root:
 
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import json
+import math
+import struct
+import sys
 import unittest
 from pathlib import Path
 
@@ -15,7 +20,29 @@ from keel_visuals import manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = {"kind", "set", "name", "title", "tags", "license", "source", "source_version", "trademark", "default_variant", "variants"}
-LICENCE_FILES = {"tabler": "tabler-icons.txt", "fluent": "fluentui-emoji.txt", "natural-earth": "natural-earth.md"}
+LICENCE_FILES = {"tabler": "tabler-icons.txt", "fluent": "fluentui-emoji.txt", "natural-earth": "natural-earth.md", "factory": "three.txt"}
+FACTORY_OBJECTS = {"gold-bar", "silver-bar", "gold-bar-stack", "oil-barrel", "coin-blank", "podium"}
+
+
+def load_factory_script():
+    """The factory build script, imported by path: scripts/ is tooling, not a package."""
+    scripts = ROOT / "scripts"
+    sys.path.insert(0, str(scripts))
+    try:
+        spec = importlib.util.spec_from_file_location("build_factory_objects", scripts / "build_factory_objects.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.path.remove(str(scripts))
+
+
+def png_header(path: Path) -> tuple[int, int, int]:
+    """Width, height and colour type straight from the IHDR chunk, so the test needs no imaging library."""
+    with path.open("rb") as handle:
+        head = handle.read(26)
+    width, height = struct.unpack(">II", head[16:24])
+    return width, height, head[25]
 
 
 class ManifestContractTests(unittest.TestCase):
@@ -58,6 +85,58 @@ class ManifestContractTests(unittest.TestCase):
         self.assertTrue(brands)
         self.assertTrue(all(asset.trademark for asset in brands))
         self.assertFalse(manifest.require_asset("icon/tabler/chart-candle").trademark)
+
+    def test_cryptocurrency_marks_are_trademarks_and_fiat_signs_are_not(self):
+        for coin in ("bitcoin", "ethereum", "solana", "xrp", "ripple", "dogecoin", "litecoin", "monero", "zcash", "tether"):
+            with self.subTest(coin=coin):
+                self.assertTrue(manifest.require_asset(f"icon/tabler/currency-{coin}").trademark)
+        for fiat in ("dollar", "euro", "pound", "yen", "rupee", "lira", "bahraini"):
+            with self.subTest(fiat=fiat):
+                self.assertFalse(manifest.require_asset(f"icon/tabler/currency-{fiat}").trademark)
+
+    def test_every_crypto_tagged_currency_icon_is_a_trademark(self):
+        """The sync refuses an unflagged coin; this proves the shipped manifest agrees with that rule."""
+        for asset in manifest.iter_assets("icon", "tabler"):
+            if asset.name.startswith("currency-") and {"crypto", "cryptocurrency", "blockchain"} & set(asset.tags):
+                with self.subTest(key=asset.key):
+                    self.assertTrue(asset.trademark)
+
+    def test_the_factory_ships_every_object_at_1024_and_512_as_transparent_png(self):
+        objects = {asset.name: asset for asset in manifest.iter_assets("object", "factory")}
+        self.assertEqual(set(objects), FACTORY_OBJECTS)
+        for asset in objects.values():
+            with self.subTest(key=asset.key):
+                self.assertFalse(asset.trademark)
+                self.assertEqual(asset.default_variant, "1024")
+                tones = [""] + asset.extra["tones"]
+                expected = {f"{tone}-{size}" if tone else str(size) for tone in tones for size in (1024, 512)}
+                self.assertEqual(set(asset.variants), expected)
+                for name, variant in asset.variants.items():
+                    size = int(name.rsplit("-", 1)[-1])
+                    self.assertEqual((variant.width, variant.height), (size, size))
+                    self.assertEqual(png_header(variant.path), (size, size, 6), f"{name} is not RGBA")
+
+    def test_factory_objects_record_the_stage_camera_light_and_contact_point(self):
+        elevation = math.degrees(math.atan((900 - 560) / 1400))
+        for asset in manifest.iter_assets("object", "factory"):
+            with self.subTest(key=asset.key):
+                camera = asset.extra["camera"]
+                self.assertAlmostEqual(camera["elevation_deg"], elevation, places=1)
+                self.assertEqual(camera["focal_px"], 1400)
+                self.assertEqual(asset.extra["light"], [-0.42, 1.0])
+                self.assertEqual(asset.extra["shadow"], "none")
+                self.assertTrue(0 < asset.extra["ground_y_px"] <= 1024)
+                self.assertTrue(0 < asset.extra["ground_x_px"] < 1024)
+                self.assertGreater(asset.extra["stage_width_px"], 0)
+
+    def test_the_factory_renders_with_the_pinned_three_js(self):
+        script = load_factory_script()
+        for name, (_member, expected) in script.THREE_FILES.items():
+            with self.subTest(file=name):
+                self.assertEqual(hashlib.sha256((script.VENDOR / name).read_bytes()).hexdigest(), expected)
+        for asset in manifest.iter_assets("object", "factory"):
+            self.assertEqual(asset.extra["renderer"]["three"], script.THREE_VERSION)
+            self.assertEqual(asset.source_version, f"factory-{script.FACTORY_VERSION}+three-{script.THREE_VERSION}")
 
     def test_a_raster_may_be_drawn_at_half_its_pixels_and_a_vector_at_any_size(self):
         coin = manifest.require_asset("object/fluent/coin").variant()

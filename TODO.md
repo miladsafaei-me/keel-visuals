@@ -13,10 +13,14 @@
   version, a `scripts/sync_3dicons.py` owns the `3dicons` set, and its licence text is
   in `LICENSES/`.
 
-### Larger 3D objects than 256 px
-- **Priority:** medium
-- **Context:** Fluent's 3D files are 256 px, so an object may be drawn at most 128 CSS px
-  on a 2x capture. A hero object on a cover wants 200–300 CSS px. No verified free set
-  with transparent files at 512 px or more was found in the first pass.
-- **Done when:** a set with objects at ≥ 512 px is vendored with its licence verified,
-  or the decision not to is recorded here.
+### Factory: the bars' hallmark depends on the rendering machine's fonts
+- **Priority:** low
+- **Context:** `scripts/factory/factory.js` strikes "FINE GOLD 999.9" and "FINE SILVER
+  999.0" with canvas text in Montserrat, falling back to FreeSans. The signalbots-web
+  container, where the set was rendered, has both; a machine without them strikes a
+  different typeface, so a re-render there changes the bytes of `gold-bar`,
+  `silver-bar` and `gold-bar-stack` even though nothing was meant to change. Everything
+  else the factory draws depends only on the pinned three.js and Chromium.
+- **Done when:** the hallmark is drawn from glyph outlines or a font file vendored
+  under `scripts/factory/vendor/` with its licence in `LICENSES/`, loaded through
+  `FontFace`, and `FACTORY_VERSION` is bumped with the re-render.
