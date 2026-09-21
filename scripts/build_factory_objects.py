@@ -5,6 +5,7 @@
     python3 scripts/build_factory_objects.py publish --from /tmp/factory-render
     python3 scripts/build_factory_objects.py coin --face-svg mark.svg --out coin.png --size 1024
     python3 scripts/build_factory_objects.py coin --face-png mark.png --out coin.png --size 1024
+    python3 scripts/build_factory_objects.py tableau --job job.json --out tableau.png --size 1024
     python3 scripts/build_factory_objects.py vendor
 
 Fluent's objects stop at 256 px and no free set with transparent objects at 512 px or
@@ -24,6 +25,16 @@ Rendering needs Playwright with Chromium. WebGL2 there runs on SwiftShader, whic
 only uses when asked (`--enable-unsafe-swiftshader`, since Chrome 137). Where the host
 has no Playwright, copy `scripts/` into a container that has it, run `render` there,
 copy the output directory back and run `publish` here: publishing needs only Pillow.
+
+The `tableau` command stands several objects on one podium in one scene, so every
+shadow and overlap is the camera's, and can frame the result on the podium rather
+than on what it holds, so a set of tableaux keeps the podium at one size and place.
+Besides the published objects it can stand three scenes that are modelled here but
+not published as sprites: a stopwatch (a dial with no numerals and one accent arc),
+a desk globe (land as evenly spaced dots, one region lit) and a lightning bolt. Bars
+take `plain` to strike the hallmark frame without its lettering. A tableau writes one
+PNG wherever it is told and never writes into this package; which objects a picture
+stands, and why, is the consumer's plan.
 
 The `coin` command is the one place a brand enters: it strikes a given SVG mark into
 the coin's face, in the mark's own colours, or sets a raster mark into the face as a
@@ -391,6 +402,42 @@ def coin(face_svg: Path | None, face_png: Path | None, out: Path, size: int, met
     print()
 
 
+def tableau(job_path: Path, out: Path, size: int) -> None:
+    """Render several objects standing on one podium, in one scene, and write one PNG.
+
+    The job file is a factory `tableau` job whose items may name their face by file
+    instead of inline: `face_svg` is read as the SVG to strike, and `face_png` is
+    prepared exactly as the `coin` command prepares a raster mark. Paths resolve
+    against the job file's directory. The objects are business-blind; which ones a
+    picture stands, and why, is the consumer's plan.
+    """
+    job = json.loads(job_path.read_text(encoding="utf-8"))
+    job["object"] = "tableau"
+    job["size"] = size * SUPERSAMPLE
+    for item in job.get("items", []):
+        if "face_svg" in item:
+            item["svg"] = (job_path.parent / item.pop("face_svg")).read_text(encoding="utf-8")
+        if "face_png" in item:
+            item["png"], item["face"] = raster_face(job_path.parent / item.pop("face_png"))
+    with Factory() as factory:
+        image, meta = factory.render(job)
+        renderer = factory.renderer_info()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    downsample(image, size).save(out, format="PNG", optimize=True)
+    report = {
+        "file": str(out),
+        "size": size,
+        "object": meta["object"],
+        "camera": meta["camera"],
+        "light": meta["light"],
+        "ground_y_px": round(meta["ground"]["y"] * size, 1),
+        "stage_width_px": round(meta["stage_width_px"], 1),
+        "renderer": renderer,
+    }
+    json.dump(report, sys.stdout, indent=1)
+    print()
+
+
 def counter_choice(value: str) -> str:
     """`auto`, `none` or a #rrggbb colour; anything else is refused before Chromium starts."""
     if value in {"auto", "none"} or re.fullmatch(r"#[0-9a-fA-F]{6}", value):
@@ -420,6 +467,10 @@ def main() -> int:
         default="auto",
         help="the enamel in a disc mark's knockouts: auto (white, or dark ink on a light disc), none (the field shows), or #rrggbb",
     )
+    tableau_cmd = commands.add_parser("tableau", help="stand several objects on one podium and write one PNG")
+    tableau_cmd.add_argument("--job", type=Path, required=True, help="a tableau job as JSON")
+    tableau_cmd.add_argument("--out", type=Path, required=True)
+    tableau_cmd.add_argument("--size", type=int, default=1024)
     commands.add_parser("vendor", help=f"re-fetch three.js {THREE_VERSION} and check it against the pinned hashes")
     args = parser.parse_args()
 
@@ -433,6 +484,8 @@ def main() -> int:
         publish_set(args.source)
     elif args.command == "coin":
         coin(args.face_svg, args.face_png, args.out, args.size, args.metal, args.counter)
+    elif args.command == "tableau":
+        tableau(args.job, args.out, args.size)
     elif args.command == "vendor":
         vendor()
     return 0

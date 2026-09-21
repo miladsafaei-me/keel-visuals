@@ -975,16 +975,312 @@ function podium({ glow = '#eaf4ff' }) {
   return group;
 }
 
+/*
+ * A mechanical stopwatch standing on the edge of its case, facing the camera and turned
+ * so the case's depth shows: a polished case with a domed crystal over a dark dial, a
+ * crown and bow on top, two pushers either side of it. The dial carries no numerals, only
+ * sixty ticks and one arc in the caller's accent, the window the hand is running out:
+ * the picture is a countdown, which is what an expiry is.
+ */
+function stopwatch({ accent = '#a78bfa', metalName = 'silver', sweep = 0.3, hand = null }) {
+  const R = 100;
+  const T = 30;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  const caseMetal = metal(metalName, { roughness: 0.18 });
+  const bezelMetal = metal(metalName, { roughness: 0.1 });
+
+  /* The case, modelled lying flat with its faces along y and stood up at the end, like the coin. */
+  const shape = profile();
+  shape.to(0, -T / 2).to(R - 8, -T / 2).arc(R - 8, -T / 2 + 8, 8, 270, 360, 8).to(R, T / 2 - 8)
+    .arc(R - 8, T / 2 - 8, 8, 0, 90, 8).to(R - 12, T / 2).to(R - 12, T / 2 + 3);
+  body.add(new THREE.Mesh(new THREE.LatheGeometry(shape.points, 256), caseMetal));
+  const bezel = new THREE.Mesh(new THREE.TorusGeometry(R - 11, 4.2, 24, 256).rotateX(Math.PI / 2), bezelMetal);
+  bezel.position.y = T / 2 + 2.4;
+  body.add(bezel);
+
+  const size = 1024;
+  const surface = document.createElement('canvas');
+  surface.width = size;
+  surface.height = size;
+  const context = surface.getContext('2d');
+  const c = size / 2;
+  const dial = context.createRadialGradient(c, c * 0.85, size * 0.05, c, c, c);
+  dial.addColorStop(0, '#1b2233');
+  dial.addColorStop(1, '#070a12');
+  context.fillStyle = dial;
+  context.fillRect(0, 0, size, size);
+  /* The dial is seen from its front with 12 o'clock up; angles run clockwise from 12. */
+  const at = (turns, radius) => [c + radius * Math.sin(turns * 2 * Math.PI), c - radius * Math.cos(turns * 2 * Math.PI)];
+  context.lineCap = 'round';
+  context.strokeStyle = accent;
+  context.lineWidth = size * 0.05;
+  context.shadowColor = accent;
+  context.shadowBlur = size * 0.03;
+  context.beginPath();
+  context.arc(c, c, c * 0.78, -Math.PI / 2, -Math.PI / 2 + sweep * 2 * Math.PI);
+  context.stroke();
+  context.shadowBlur = 0;
+  for (let i = 0; i < 60; i++) {
+    const major = i % 5 === 0;
+    const [x1, y1] = at(i / 60, c * (major ? 0.62 : 0.68));
+    const [x2, y2] = at(i / 60, c * 0.72);
+    context.strokeStyle = major ? '#e8edf5' : 'rgba(232, 237, 245, 0.55)';
+    context.lineWidth = size * (major ? 0.014 : 0.006);
+    context.beginPath();
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+  }
+  const face = new THREE.CanvasTexture(surface);
+  face.colorSpace = THREE.SRGBColorSpace;
+  face.anisotropy = 8;
+  const dialMesh = new THREE.Mesh(
+    new THREE.CircleGeometry(R - 13, 256).rotateX(-Math.PI / 2),
+    new THREE.MeshPhysicalMaterial({ map: face, metalness: 0, roughness: 0.55, emissive: 0xffffff, emissiveMap: face, emissiveIntensity: 0.35 }),
+  );
+  dialMesh.position.y = T / 2 + 0.6;
+  body.add(dialMesh);
+
+  /* The sweep hand stands at the end of the accent arc; a shorter hand is drawn only when `hand` names its turn. */
+  const handMaterial = new THREE.MeshPhysicalMaterial({ color: 0xf2f5fa, metalness: 0.6, roughness: 0.25 });
+  const pointer = (turns, length, width, lift) => {
+    const piece = new THREE.Mesh(new THREE.BoxGeometry(width, 1.4, length + width).translate(0, 0, -(length - width) / 2), handMaterial);
+    piece.rotation.y = -turns * 2 * Math.PI;
+    piece.position.y = T / 2 + lift;
+    body.add(piece);
+  };
+  pointer(sweep, (R - 13) * 0.8, 3.2, 2.2);
+  if (hand !== null) pointer(hand, (R - 13) * 0.46, 4.4, 3.4);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 3, 48), bezelMetal);
+  cap.position.y = T / 2 + 4;
+  body.add(cap);
+
+  /* A shallow domed crystal: nearly invisible, but it carries the softbox's reflection across the dial. */
+  const crystal = new THREE.Mesh(
+    new THREE.SphereGeometry(R * 2.2, 128, 16, 0, Math.PI * 2, 0, Math.asin((R - 12) / (R * 2.2))),
+    new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0, roughness: 0.02, transparent: true, opacity: 0.12, envMapIntensity: 1.4, depthWrite: false }),
+  );
+  crystal.position.y = T / 2 + 3 - R * 2.2 * Math.cos(Math.asin((R - 12) / (R * 2.2))) + 4;
+  body.add(crystal);
+
+  body.rotation.x = Math.PI / 2;
+  const standing = new THREE.Group();
+  standing.add(body);
+
+  /* Crown, stem and bow on top; a pusher either side of it at 45 degrees. */
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(6, 7, 16, 32), caseMetal);
+  stem.position.y = R + 7;
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 14, 48), metal(metalName, { roughness: 0.3 }));
+  crown.position.y = R + 20;
+  const bow = new THREE.Mesh(new THREE.TorusGeometry(20, 4.4, 20, 96), bezelMetal);
+  bow.position.y = R + 44;
+  standing.add(stem, crown, bow);
+  for (const side of [-1, 1]) {
+    const angle = side * Math.PI / 4;
+    const pusher = new THREE.Group();
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(5, 6, 14, 32), caseMetal);
+    post.position.y = R + 5;
+    const button = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 9, 40), metal(metalName, { roughness: 0.3 }));
+    button.position.y = R + 14;
+    pusher.add(post, button);
+    pusher.rotation.z = -angle;
+    standing.add(pusher);
+  }
+  standing.position.y = R;
+  group.add(standing);
+  group.rotation.y = -0.34;
+  return group;
+}
+
+/* Is a point inside a polygon of [lon, lat] corners (even-odd). */
+function insidePolygon(lon, lat, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/*
+ * A desk globe: a dark lacquered sphere whose land is a field of lit dots, tilted on its
+ * axis inside a polished meridian arc that rises from a round foot. `dots` is a list of
+ * [lat, lon] land points (the caller spaces them evenly over the sphere); the ones inside
+ * the `highlight` polygon are lit in `highlightColor` and stand a little proud, so one
+ * region reads against the rest of the world. `facing` is the longitude turned to the camera,
+ * and `pitch` leans the north pole toward it by that many degrees.
+ */
+function globe({ dots = [], highlight = null, dotColor = '#60a5fa', highlightColor = '#f5f9ff', glow = '#60a5fa', facing = -60, pitch = 0 }) {
+  const R = 118;
+  const tilt = THREE.MathUtils.degToRad(-23.4);
+  const group = new THREE.Group();
+  const centreY = R + 64;
+
+  const sphere = new THREE.Group();
+  /* A satin lacquer: a mirror finish threw softbox highlights as white as the lit region's dots. */
+  sphere.add(new THREE.Mesh(
+    new THREE.SphereGeometry(R, 128, 96),
+    new THREE.MeshPhysicalMaterial({ color: linear(0.012, 0.022, 0.05), metalness: 0.2, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.3, envMapIntensity: 0.4 }),
+  ));
+  const place = (lat, lon, radius) => {
+    const phi = THREE.MathUtils.degToRad(lat);
+    const lambda = THREE.MathUtils.degToRad(lon);
+    return new THREE.Vector3(radius * Math.cos(phi) * Math.sin(lambda), radius * Math.sin(phi), radius * Math.cos(phi) * Math.cos(lambda));
+  };
+  const lit = [];
+  const rest = [];
+  for (const [lat, lon] of dots) (highlight && insidePolygon(lon, lat, highlight) ? lit : rest).push([lat, lon]);
+  const field = (points, color, radius, lift, intensity) => {
+    if (!points.length) return;
+    const geometry = new THREE.CylinderGeometry(radius, radius, 1.2, 12).rotateX(Math.PI / 2);
+    const material = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, metalness: 0, roughness: 0.5 });
+    const mesh = new THREE.InstancedMesh(geometry, material, points.length);
+    const matrix = new THREE.Matrix4();
+    const up = new THREE.Vector3(0, 0, 1);
+    const quaternion = new THREE.Quaternion();
+    points.forEach(([lat, lon], i) => {
+      const position = place(lat, lon, R + lift);
+      quaternion.setFromUnitVectors(up, position.clone().normalize());
+      matrix.compose(position, quaternion, new THREE.Vector3(1, 1, 1));
+      mesh.setMatrixAt(i, matrix);
+    });
+    mesh.userData.glow = true;
+    sphere.add(mesh);
+  };
+  field(rest, new THREE.Color(dotColor), 1.9, 0.4, 0.9);
+  field(lit, new THREE.Color(highlightColor), 2.3, 1.2, 1.6);
+  sphere.rotation.y = -THREE.MathUtils.degToRad(facing);
+
+  const axis = new THREE.Group();
+  axis.add(sphere);
+  axis.rotation.x = THREE.MathUtils.degToRad(pitch);
+  axis.rotation.z = tilt;
+  axis.position.y = centreY;
+
+  /* A fresnel rim in the glow colour, the atmosphere a lit globe carries. */
+  const display = new THREE.Color(glow);
+  const rim = new THREE.Mesh(
+    new THREE.SphereGeometry(R * 1.06, 96, 64),
+    new THREE.ShaderMaterial({
+      uniforms: { tint: { value: new THREE.Vector3(display.r, display.g, display.b) } },
+      vertexShader: 'varying vec3 vNormal; varying vec3 vView; void main() { vec4 world = modelViewMatrix * vec4(position, 1.0); vNormal = normalize(normalMatrix * normal); vView = normalize(-world.xyz); gl_Position = projectionMatrix * world; }',
+      fragmentShader: 'uniform vec3 tint; varying vec3 vNormal; varying vec3 vView; void main() { float f = 1.0 - abs(dot(vNormal, vView)); float a = pow(f, 3.2) * 0.9; gl_FragColor = vec4(tint * a, a); }',
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      premultipliedAlpha: true,
+      side: THREE.BackSide,
+    }),
+  );
+  rim.position.y = centreY;
+  rim.userData.glow = true;
+
+  /*
+   * The meridian: a polished ring through both poles, turned about the axis so it reads
+   * as a ring and not a halo, pinned to the sphere at the poles, and carried from its
+   * lowest point by a stem that rises from a round foot.
+   */
+  const steel = metal('silver', { roughness: 0.14 });
+  const ringRadius = R + 10;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(ringRadius, 3.4, 20, 256), steel);
+  ring.rotation.y = 0.62;
+  axis.add(ring);
+  for (const side of [1, -1]) {
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, ringRadius - R + 6, 20), steel);
+    pin.position.y = side * (R + (ringRadius - R) / 2 - 2);
+    axis.add(pin);
+  }
+  axis.updateMatrixWorld(true);
+  let lowest = null;
+  for (let i = 0; i < 1440; i++) {
+    const angle = (i / 1440) * Math.PI * 2;
+    const point = new THREE.Vector3(ringRadius * Math.cos(angle), ringRadius * Math.sin(angle), 0).applyMatrix4(ring.matrixWorld);
+    if (!lowest || point.y < lowest.y) lowest = point;
+  }
+  const footTop = 16;
+  const stemHeight = lowest.y - footTop + 2;
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 6.4, stemHeight, 32), steel);
+  stem.position.set(lowest.x, footTop + stemHeight / 2 - 1, lowest.z);
+  const footShape = profile();
+  footShape.to(0, 0).to(50, 0).arc(50, 4, 4, 270, 360, 5).to(54, 8).arc(48, 8, 6, 0, 90, 6).to(20, 14).to(0, footTop);
+  const foot = new THREE.Mesh(new THREE.LatheGeometry(footShape.points, 128), steel);
+  foot.position.set(lowest.x, 0, lowest.z);
+  group.add(axis, rim, stem, foot);
+  return group;
+}
+
+/*
+ * A lightning bolt cut from a thick slab, bevelled on every edge and finished in a
+ * clear-coated enamel over metal, standing on its lower point. It is the sign of a feed
+ * that arrives the moment it is sent.
+ */
+function bolt({ paint = '#fb7185', depth = 34 }) {
+  const outline = [[18, 150], [-56, 6], [-6, 6], [-30, -150], [56, 22], [4, 22], [38, 150]];
+  const shape = new THREE.Shape();
+  outline.forEach(([x, y], i) => (i ? shape.lineTo(x, y) : shape.moveTo(x, y)));
+  shape.closePath();
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 7, bevelSize: 6, bevelSegments: 8, curveSegments: 4 });
+  geometry.translate(0, 0, -depth / 2);
+  geometry.computeBoundingBox();
+  geometry.translate(0, -geometry.boundingBox.min.y, 0);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(paint),
+    metalness: 0.55,
+    roughness: 0.22,
+    clearcoat: 1,
+    clearcoatRoughness: 0.05,
+    envMapIntensity: 0.9,
+  });
+  const group = new THREE.Group();
+  const mesh = new THREE.Mesh(geometry, material);
+  group.add(mesh);
+  group.rotation.y = -0.42;
+  return group;
+}
+
+/*
+ * Several objects standing on one podium, in one scene, so every shadow and every
+ * overlap is the camera's rather than a composite's. `items` are ordinary jobs, each
+ * with a place on the podium's top (`x` right, `z` toward the camera, `y` lifted off the
+ * top), an extra turn about the vertical and a scale. The podium is scaled by
+ * `podium.scale`; its top is where every item stands.
+ */
+function tableau(job) {
+  const group = new THREE.Group();
+  const podiumOptions = job.podium || {};
+  const scale = podiumOptions.scale ?? 1;
+  const base = podium(podiumOptions);
+  base.scale.setScalar(scale);
+  group.add(base);
+  const top = 58 * scale;
+  const info = { podium: { diameter: 460 * scale, height: top }, items: [] };
+  let exposure = job.exposure ?? 1.0;
+  for (const item of job.items || []) {
+    const made = build(item);
+    const holder = new THREE.Group();
+    holder.add(made.root);
+    holder.scale.setScalar(item.scale ?? 1);
+    holder.rotation.y = item.turn ?? 0;
+    holder.position.set(item.x ?? 0, top + (item.y ?? 0), item.z ?? 0);
+    if (item.tilt) holder.rotation.z = item.tilt;
+    group.add(holder);
+    info.items.push({ object: item.object, x: item.x ?? 0, z: item.z ?? 0, scale: item.scale ?? 1 });
+  }
+  return { root: group, info, exposure, frameOn: base };
+}
+
 function build(job) {
   const options = job.options || {};
   switch (job.object) {
     case 'gold-bar': {
-      const root = bar({ metalName: 'gold', mark: GOLD_MARK });
+      const root = bar({ metalName: 'gold', mark: options.plain ? [] : GOLD_MARK });
       root.rotation.y = -0.4;
       return { root, info: { size: { length: 250, height: 60, width: 100 } } };
     }
     case 'silver-bar': {
-      const root = bar({ metalName: 'silver', mark: SILVER_MARK, finish: SILVER_BAR_FINISH });
+      const root = bar({ metalName: 'silver', mark: options.plain ? [] : SILVER_MARK, finish: SILVER_BAR_FINISH });
       root.rotation.y = -0.4;
       return {
         root,
@@ -1004,6 +1300,14 @@ function build(job) {
     }
     case 'podium':
       return { root: podium(options), info: { size: { diameter: 460, height: 58 } } };
+    case 'stopwatch':
+      return { root: stopwatch(options), info: { size: { diameter: 200, thickness: 30 } } };
+    case 'globe':
+      return { root: globe(options), info: { size: { diameter: 236 }, dots: (options.dots || []).length } };
+    case 'bolt':
+      return { root: bolt(options), info: { size: { height: 300 } } };
+    case 'tableau':
+      return tableau(job);
     default:
       throw new Error(`the factory has no object ${job.object}`);
   }
@@ -1069,8 +1373,9 @@ async function render(job) {
   scene.environment = studioEnvironment();
   scene.environmentIntensity = job.environmentIntensity ?? 1.0;
   if (job.png) job.image = await loadImage(job.png);
+  for (const item of job.items || []) if (item.png) item.image = await loadImage(item.png);
   /* An object may ask for its own exposure; every other object renders at 1, so one object's pass never shifts the rest. */
-  const { root, info, exposure = 1.0 } = build(job);
+  const { root, info, exposure = 1.0, frameOn = null } = build(job);
   scene.add(root);
   root.traverse((object) => {
     if (!object.isMesh) return;
@@ -1092,9 +1397,23 @@ async function render(job) {
   camera.position.set(0, EYE_HEIGHT, FOCAL);
   camera.lookAt(0, EYE_HEIGHT, 0);
   const bounds = projectedBounds(root);
-  const side = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * (1 + 2 * PADDING);
-  const left = (bounds.minX + bounds.maxX) / 2 - side / 2;
-  const top = (bounds.minY + bounds.maxY) / 2 - side / 2;
+  let side = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * (1 + 2 * PADDING);
+  let left = (bounds.minX + bounds.maxX) / 2 - side / 2;
+  let top = (bounds.minY + bounds.maxY) / 2 - side / 2;
+  /*
+   * A tableau may be framed on its podium instead of on everything it holds: the window
+   * is `frame.width` podium widths wide and square, centred on the podium, its foot
+   * `frame.foot` of the window below the podium's lowest point. Every tableau framed
+   * the same way puts its podium at the same size and place, whatever stands on it.
+   */
+  if (job.frame && frameOn) {
+    const base = projectedBounds(frameOn);
+    side = (base.maxX - base.minX) * job.frame.width;
+    left = (base.minX + base.maxX) / 2 - side / 2;
+    top = base.maxY + side * (job.frame.foot ?? 0.06) - side;
+    const clipped = bounds.minX < left || bounds.maxX > left + side || bounds.minY < top || bounds.maxY > top + side;
+    if (clipped) throw new Error(`the tableau does not fit its frame: objects reach ${JSON.stringify(bounds)}, window ${left},${top} side ${side}`);
+  }
   camera.setViewOffset(VIRTUAL, VIRTUAL, left, top, side, side);
   camera.updateProjectionMatrix();
 
