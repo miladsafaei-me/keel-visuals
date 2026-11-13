@@ -1,4 +1,4 @@
-# CLAUDE.md — keel-visuals
+# CLAUDE.md - keel-visuals
 
 Guidance for Claude Code in **keel-visuals**, a reusable Keel **package** (not a
 consumer app). Inherits the global rules in `~/.claude/CLAUDE.md` and the Keel
@@ -6,7 +6,7 @@ methodology in `~/www/keel-kit/methodology/`.
 
 ## Task tracking
 
-Remaining and follow-up work for this project is tracked in [TODO.md](TODO.md), not in chat memory. Every pending task — priority, prerequisites/dependencies, enough context to resume cold — goes there before starting new work; remove a task from TODO.md the moment it's done.
+Remaining and follow-up work for this project is tracked in [TODO.md](TODO.md), not in chat memory. Every pending task - priority, prerequisites/dependencies, enough context to resume cold - goes there before starting new work; remove a task from TODO.md the moment it's done.
 
 ## What this package is
 
@@ -21,8 +21,8 @@ keel-finlogo. This package holds everything that is not somebody's brand.
 
 ## The key is the only address
 
-An asset is `<kind>/<set>/<name>` — `icon/tabler/chart-candle`,
-`object/fluent/money-bag`, `map/natural-earth/world-dots`, `frame/keel/phone` —
+An asset is `<kind>/<set>/<name>` - `icon/tabler/chart-candle`,
+`object/fluent/money-bag`, `map/natural-earth/world-dots`, `frame/keel/phone` -
 with one or more named variants. A consumer resolves a key through
 `keel_visuals.require_asset()` and never builds a path by hand. Renaming a key is
 a breaking change for every plan that names it: bump the minor version and say so.
@@ -44,7 +44,7 @@ manifest entry; never edit the manifest by hand.
 **Each script owns exactly one set and replaces it wholesale**
 (`_common.replace_set`), so a re-run is idempotent and an asset removed upstream
 disappears here too. Pin every source to an exact release or commit on the
-command line — a sync that tracks `main` makes the registry change under a
+command line - a sync that tracks `main` makes the registry change under a
 consumer that did not re-pin.
 
 | set | script | source pin |
@@ -102,14 +102,13 @@ read it with no Django in the process. Do not add a model, a view or a `urls.py`
 
 ## Self-check before shipping
 
-- `PYTHONPATH=src python3 -m unittest discover -s tests` — it hashes every file
+- `PYTHONPATH=src python3 -m unittest discover -s tests` - it hashes every file
   against the manifest, so it is the check that a sync finished cleanly.
 - `python3 -m keel_visuals.catalog --summary` from `src/` and read the counts.
-- No banner comments; English only in code, identifiers and docs.
 
 ## Release
 
 Same as every Keel package: `~/www/keel-kit/scripts/keel-release.sh X.Y.Z` from the
 repo root. `version-guard` CI enforces tag == `pyproject.toml` version and that
-`src/` never changes without a bump — see
+`src/` never changes without a bump - see
 `keel-kit/methodology/versioning-and-release.md`.
